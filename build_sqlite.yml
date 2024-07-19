@@ -1,0 +1,52 @@
+---
+- name: Build SQLite and create Docker environment
+  hosts: all
+  become: yes
+  tasks:
+    - name: Download SQLite source
+      get_url:
+        url: https://www.sqlite.org/2018/sqlite-amalgamation-3260000.zip
+        dest: /tmp/sqlite-amalgamation-3260000.zip
+        mode: 0755
+
+    - name: Unzip SQLite source
+      unarchive:
+        src: /tmp/sqlite-amalgamation-3260000.zip
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Compile SQLite
+      command: |
+        bash -c "
+        cd /tmp/sqlite-amalgamation-3260000 &&
+        gcc -fPIC -shared sqlite3.c -o libsqlite3.so
+        "
+      args:
+        chdir: /tmp/sqlite-amalgamation-3260000
+
+    - name: Create Dockerfile
+      copy:
+        content: |
+          FROM alpine:3.19.0
+          LABEL maintainer="intern@gmail.com"
+          RUN apk update && \
+              apk add --no-cache \
+                  cmake \
+                  gcc \
+                  g++ \
+                  make \
+                  sqlite-dev
+          RUN rm -rf /var/cache/apk/*
+          COPY /tmp/sqlite-amalgamation-3260000 /app
+          WORKDIR /app
+          RUN gcc -fPIC -shared sqlite3.c -o libsqlite3.so
+          CMD ["ls", "/app"]
+        dest: /tmp/Dockerfile
+
+    - name: Build Docker image
+      docker_image:
+        name: sqlite-builder
+        build:
+          path: /tmp/
+        source: build
+        tag: latest

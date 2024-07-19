@@ -1,0 +1,13 @@
+stages:
+  - build
+
+build_sqlite:
+  stage: build
+  image: iliazhigalev/my-repository:v2
+  script:  
+    - cmake ..
+    - make
+    
+  artifacts:
+    paths:
+      - build/libsqlite.so
